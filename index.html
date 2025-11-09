@@ -377,13 +377,21 @@ const editing = new Set();
 
   async function add(){
     const payload = {
-      title: els.category.value,        // 分類を title に保存
+      title: els.category.value,     // 分類
       text: els.text.value.trim(),
     };
     if(!payload.text){ alert('本文を入力してください'); return; }
+  
     const res = await api('/api/todos', { method:'POST', body: JSON.stringify(payload) });
-    if(!res.ok){ const t = await res.text(); alert('追加失敗: ' + res.status + ' ' + res.statusText + '\n' + t); return; }
-    els.text.value=''; els.category.value = 'その他';
+    if(!res.ok){
+      const t = await res.text();
+      alert('追加失敗: ' + res.status + ' ' + res.statusText + '\n' + t);
+      return;
+    }
+  
+    // 入力本文だけクリア。分類は保持する（←ここがポイント）
+    els.text.value = '';
+    saveLastCategory();   // 念のため直近値を保存
     reload();
   }
 
