@@ -258,7 +258,17 @@ const editing = new Set();
     currentRandom = it;
     randomEditing = false;
     buildRandomBox();
+  
+    // 画面にスクロール＆フォーカス移動
+    els.randomBox.style.display = '';
     els.randomBox.scrollIntoView({ behavior:'smooth', block:'start' });
+    // 描画反映後にフォーカス（微遅延が安全）
+    setTimeout(() => {
+      // 編集中ならテキストエリア、通常ならボックス本体へ
+      const ta = document.getElementById('randTextEdit');
+      if (ta) ta.focus();
+      else els.randomBox.focus();
+    }, 0);
   }
 
   async function saveRandomEdit(){
