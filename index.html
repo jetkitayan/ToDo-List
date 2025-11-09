@@ -50,7 +50,12 @@
   <section class="card">
     <h2 style="margin:0 0 12px 0;font-size:16px">新規追加</h2>
     <div class="row" style="gap:8px;margin-bottom:8px">
-      <input id="title" type="text" placeholder="タイトル（任意）" size="24" />
+      <select id="category">
+        <option value="仕事">仕事</option>
+        <option value="プライベート">プライベート</option>
+        <option value="勉強">勉強</option>
+        <option value="その他" selected>その他</option>
+      </select>
       <button id="add" class="btn">追加</button>
     </div>
     <textarea id="text" placeholder="やることの本文"></textarea>
