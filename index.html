@@ -25,9 +25,6 @@
     th{font-size:12px;color:var(--muted)}
     .strike{text-decoration:line-through;color:#999}
     .right{margin-left:auto}
-    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px}
-    .chips{display:flex;flex-wrap:wrap;gap:6px}
-    .chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted)}
     .counts{font-size:12px;color:var(--muted)}
   </style>
 </head>
@@ -37,33 +34,22 @@
       <h1>ToDo 管理</h1>
       <span class="right counts" id="counts">—</span>
     </div>
-    <div class="row" style="margin-top:8px">
-      <div class="row" style="gap:6px">
-        <label>API</label>
-        <input id="apiBase" type="text" value="https://memo-save-api.jetkitayan.workers.dev" />
-        <label>ユーザー</label>
-        <input id="authUser" type="text" size="10" />
-        <label>パス</label>
-        <input id="authPass" type="password" size="10" />
-        <button id="saveCfg" class="btn-ghost">保存</button>
-      </div>
-      <div class="row right" style="gap:6px">
-        <label>表示</label>
-        <select id="filterDone">
-          <option value="0">未完のみ</option>
-          <option value="all">すべて</option>
-          <option value="1">完了のみ</option>
-        </select>
-        <label>並び</label>
-        <select id="sort">
-          <option value="default">更新順（未完→完了）</option>
-          <option value="due">期限順</option>
-          <option value="priority">優先度順</option>
-        </select>
-        <label>検索</label>
-        <input id="q" type="text" size="14" placeholder="キーワード" />
-        <button id="reload" class="btn-ghost">再読込</button>
-      </div>
+    <div class="row right" style="gap:6px;margin-top:8px">
+      <label>表示</label>
+      <select id="filterDone">
+        <option value="0">未完のみ</option>
+        <option value="all">すべて</option>
+        <option value="1">完了のみ</option>
+      </select>
+      <label>並び</label>
+      <select id="sort">
+        <option value="default">更新順（未完→完了）</option>
+        <option value="due">期限順</option>
+        <option value="priority">優先度順</option>
+      </select>
+      <label>検索</label>
+      <input id="q" type="text" size="14" placeholder="キーワード" />
+      <button id="reload" class="btn-ghost">再読込</button>
     </div>
   </header>
 
@@ -100,14 +86,11 @@
 
 <script>
 (function(){
-  // ★ 既定のAPI（メモ管理と同じく固定）
   const API_BASE = 'https://memo-save-api.jetkitayan.workers.dev';
+  const USER = '';   // ← BASIC_USER 設定しているならここに
+  const PASS = '';   // ← BASIC_PASS 設定しているならここに
 
   const els = {
-    apiBase: document.getElementById('apiBase'),
-    authUser: document.getElementById('authUser'),
-    authPass: document.getElementById('authPass'),
-    saveCfg: document.getElementById('saveCfg'),
     filterDone: document.getElementById('filterDone'),
     sort: document.getElementById('sort'),
     q: document.getElementById('q'),
@@ -121,51 +104,13 @@
     counts: document.getElementById('counts'),
   };
 
-  // --- 設定をlocalStorageに保存 ---
-  const LS_KEY = 'todo_cfg_v1';
-  function loadCfg(){
-    try{
-      const o = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
-      // ★ 未保存なら既定APIを自動使用
-      els.apiBase.value = o.apiBase || API_BASE;
-      els.authUser.value = o.user || '';
-      els.authPass.value = o.pass || '';
-      els.filterDone.value = o.done || '0';
-      els.sort.value = o.sort || 'default';
-      els.q.value = o.q || '';
-    }catch{}
-  }
-  function saveCfg(){
-    const o = {
-      apiBase: els.apiBase.value.trim(),
-      user: els.authUser.value.trim(),
-      pass: els.authPass.value,
-      done: els.filterDone.value,
-      sort: els.sort.value,
-      q: els.q.value.trim(),
-    };
-    localStorage.setItem(LS_KEY, JSON.stringify(o));
-  }
-  loadCfg();
-
-  els.saveCfg.addEventListener('click', ()=>{ saveCfg(); alert('設定を保存しました'); });
-  ['change','keyup'].forEach(ev=>{
-    els.filterDone.addEventListener(ev, saveCfg);
-    els.sort.addEventListener(ev, saveCfg);
-    els.q.addEventListener(ev, e=>{ if(e.key==='Enter') reload(); else saveCfg(); });
-  });
-
   function authHeader(){
-    const u = els.authUser.value.trim();
-    const p = els.authPass.value;
-    return u ? { 'Authorization': 'Basic ' + btoa(u + ':' + p) } : {};
+    return USER ? { 'Authorization': 'Basic ' + btoa(USER + ':' + PASS) } : {};
   }
 
   function api(path, opts={}){
-    // ★ 入力が空でも既定APIでフォールバック
-    const base = (els.apiBase.value.trim() || API_BASE).replace(/\/$/, '');
     const headers = { 'Content-Type': 'application/json', ...authHeader(), ...(opts.headers||{}) };
-    return fetch(base + path, { ...opts, headers });
+    return fetch(API_BASE + path, { ...opts, headers });
   }
 
   async function reload(){
@@ -179,7 +124,7 @@
     const res = await api('/api/todos?' + q.toString());
     if(!res.ok){ console.error(await res.text()); alert('読み込みに失敗しました'); return; }
     const data = await res.json();
-    render(data.todos || data); // サーバ実装によってどちらでも拾えるように
+    render(data.todos || data);
   }
 
   function fmtDate(s){ if(!s) return ''; return s.replace('T',' ').replace('Z',''); }
@@ -269,7 +214,6 @@
     reload();
   }
 
-  // UIイベント
   els.add.addEventListener('click', add);
   els.reload.addEventListener('click', reload);
   ['change'].forEach(ev=>{
@@ -277,8 +221,6 @@
     els.sort.addEventListener(ev, reload);
   });
 
-  // ★ 初回も既定APIを反映（空なら上書き）
-  if(!els.apiBase.value){ els.apiBase.value = API_BASE; }
   reload();
 })();
 </script>
