@@ -85,6 +85,10 @@
   </section>
 
 <script>
+
+// 追加：編集中フラグ
+const editing = new Set(); // id を入れておく
+  
 (function(){
   const API_BASE = 'https://memo-save-api.jetkitayan.workers.dev';
   const USER = 'jet-pay';   // ← BASIC_USER 設定しているならここに
@@ -134,10 +138,10 @@
     let todo = 0, done = 0, overdue = 0;
     const today = new Date();
     items.forEach(it=>{ if(it.done) done++; else todo++; });
-
+  
     for(const it of items){
       const tr = document.createElement('tr');
-
+  
       // 完了チェック
       const td0 = document.createElement('td');
       const cb = document.createElement('input');
@@ -145,41 +149,88 @@
       cb.checked = !!it.done;
       cb.addEventListener('change', ()=> toggleDone(it.id, cb.checked));
       td0.appendChild(cb);
-
-      // 本文
+  
+      const isEdit = editing.has(it.id);
+  
+      // 本文（タイトル+本文）
       const td1 = document.createElement('td');
-      const title = document.createElement('div');
-      title.textContent = it.title || '(無題)';
-      title.style.fontWeight = '600';
-      const text = document.createElement('div');
-      text.textContent = it.text || '';
-      if(it.done){ title.classList.add('strike'); text.classList.add('strike'); }
-      td1.append(title, text);
-
+      if(isEdit){
+        const titleI = document.createElement('input');
+        titleI.type = 'text';
+        titleI.value = it.title || '';
+        titleI.style.fontWeight = '600';
+        titleI.style.display = 'block';
+        titleI.style.marginBottom = '6px';
+  
+        const textI = document.createElement('textarea');
+        textI.value = it.text || '';
+        textI.style.width = '100%';
+  
+        td1.append(titleI, textI);
+        td1.dataset.role = 'edit-main';
+      }else{
+        const title = document.createElement('div');
+        title.textContent = it.title || '(無題)';
+        title.style.fontWeight = '600';
+        const text = document.createElement('div');
+        text.textContent = it.text || '';
+        if(it.done){ title.classList.add('strike'); text.classList.add('strike'); }
+        td1.append(title, text);
+      }
+  
       // 期限/優先
       const td2 = document.createElement('td');
-      const due = document.createElement('div');
-      due.textContent = it.due_at ? ('期限: ' + it.due_at.slice(0,10)) : '期限: —';
-      const pr = document.createElement('div');
-      pr.textContent = '優先度: ' + (Number.isFinite(it.priority) ? it.priority : 0);
-      td2.append(due, pr);
-      if(it.due_at && !it.done){
-        const d = new Date(it.due_at);
-        if(d.setHours(0,0,0,0) < today.setHours(0,0,0,0)) { overdue++; }
+      if(isEdit){
+        const dueI = document.createElement('input');
+        dueI.type = 'date';
+        dueI.value = it.due_at ? it.due_at.slice(0,10) : '';
+        dueI.style.display = 'block';
+        dueI.style.marginBottom = '6px';
+  
+        const prI = document.createElement('select');
+        prI.innerHTML = `
+          <option value="0">優先度: 0（通常）</option>
+          <option value="1">1（高）</option>
+          <option value="2">2（最優先）</option>
+          <option value="-1">-1（低）</option>`;
+        prI.value = Number.isFinite(it.priority) ? String(it.priority) : '0';
+  
+        td2.append(dueI, prI);
+        td2.dataset.role = 'edit-sub';
+      }else{
+        const due = document.createElement('div');
+        due.textContent = it.due_at ? ('期限: ' + it.due_at.slice(0,10)) : '期限: —';
+        const pr = document.createElement('div');
+        pr.textContent = '優先度: ' + (Number.isFinite(it.priority) ? it.priority : 0);
+        td2.append(due, pr);
+        if(it.due_at && !it.done){
+          const d = new Date(it.due_at);
+          if(d.setHours(0,0,0,0) < today.setHours(0,0,0,0)) { overdue++; }
+        }
       }
-
+  
       // 更新情報
       const td3 = document.createElement('td');
       const up = document.createElement('div'); up.textContent = '更新: ' + fmtDate(it.updated_at || '');
       const dn = document.createElement('div'); dn.textContent = it.done_at ? ('完了: ' + fmtDate(it.done_at)) : '';
       td3.append(up, dn);
-
+  
       // 操作
       const td4 = document.createElement('td');
-      const btnDel = document.createElement('button'); btnDel.className='btn-danger'; btnDel.textContent='削除';
-      btnDel.onclick = ()=> delTodo(it.id);
-      td4.append(btnDel);
-
+      if(isEdit){
+        const btnSave = document.createElement('button'); btnSave.className='btn'; btnSave.textContent='保存';
+        btnSave.onclick = ()=> saveEdit(it.id, tr);
+        const btnCancel = document.createElement('button'); btnCancel.className='btn-ghost'; btnCancel.style.marginLeft='6px'; btnCancel.textContent='取消';
+        btnCancel.onclick = ()=> { editing.delete(it.id); reload(); };
+        td4.append(btnSave, btnCancel);
+      }else{
+        const btnEdit = document.createElement('button'); btnEdit.className='btn-ghost'; btnEdit.textContent='編集';
+        btnEdit.onclick = ()=> { editing.add(it.id); reload(); };
+        const btnDel = document.createElement('button'); btnDel.className='btn-danger'; btnDel.style.marginLeft='6px'; btnDel.textContent='削除';
+        btnDel.onclick = ()=> delTodo(it.id);
+        td4.append(btnEdit, btnDel);
+      }
+  
       tr.append(td0, td1, td2, td3, td4);
       els.tbody.appendChild(tr);
     }
@@ -214,6 +265,25 @@
     reload();
   }
 
+  async function saveEdit(id, tr){
+    const main = tr.querySelector('td[data-role="edit-main"]');
+    const sub  = tr.querySelector('td[data-role="edit-sub"]');
+    const [titleI, textI] = main.querySelectorAll('input,textarea');
+    const [dueI, prI] = sub.querySelectorAll('input,select');
+  
+    const payload = {
+      title: (titleI.value || null),
+      text: (textI.value || ''),
+      dueAt: dueI.value ? (dueI.value + 'T00:00:00Z') : null,
+      priority: Number(prI.value) || 0,
+    };
+  
+    const res = await api('/api/todos/'+id, { method:'PATCH', body: JSON.stringify(payload) });
+    if(!res.ok){ alert('保存に失敗しました'); return; }
+    editing.delete(id);
+    reload();
+  }
+  
   els.add.addEventListener('click', add);
   els.reload.addEventListener('click', reload);
   ['change'].forEach(ev=>{
