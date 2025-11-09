@@ -416,6 +416,22 @@ const editing = new Set();
     console.log('TEST todos GET', r.status, r.statusText);
   }
 
+  // 追加：最後に使った分類を保存/復元
+  const LS_LAST_CAT = 'todo_last_category_v1';
+  
+  function loadLastCategory(){
+    const v = localStorage.getItem(LS_LAST_CAT);
+    if (v) els.category.value = v;
+  }
+  function saveLastCategory(){
+    localStorage.setItem(LS_LAST_CAT, els.category.value);
+  }
+  
+  // 起動時に復元
+  loadLastCategory();
+  // UIで変更されたら即保存
+  els.category.addEventListener('change', saveLastCategory);
+
   // イベント
   els.add.addEventListener('click', add);
   els.reload.addEventListener('click', reload);
