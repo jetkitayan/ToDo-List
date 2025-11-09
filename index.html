@@ -123,10 +123,11 @@
   </section>
 
 <script>
-let CATEGORIES = loadCategories();
 const editing = new Set();
 
 (function(){
+  let CATEGORIES = loadCategories();
+
   const API_BASE = 'https://memo-save-api.jetkitayan.workers.dev';
   const USER = 'jet-pay';
   const PASS = 'kibare@1002';
@@ -167,6 +168,17 @@ const editing = new Set();
   let currentRandom = null;  // {id,title,text,...}
   let randomEditing = false;
 
+  function fillSelectOptions(selectEl, options, selectedValue){
+    selectEl.innerHTML = '';
+    for (const cat of options) {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      if (selectedValue && selectedValue === cat) opt.selected = true;
+      selectEl.appendChild(opt);
+    }
+  }
+  
   function authHeader(){
     return USER ? { 'Authorization': 'Basic ' + btoa(USER + ':' + PASS) } : {};
   }
