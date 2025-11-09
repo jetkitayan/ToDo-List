@@ -181,6 +181,80 @@ const editing = new Set();
 
   // 起動時：追加フォームのカテゴリ候補を反映
   fillSelectOptions(els.category, CATEGORIES, els.category.value);
+
+  function renderCatList(){
+    els.catList.innerHTML = '';
+    for (const cat of CATEGORIES) {
+      const wrap = document.createElement('div');
+      wrap.style.display = 'inline-flex';
+      wrap.style.alignItems = 'center';
+      wrap.style.gap = '6px';
+      wrap.style.border = '1px solid var(--line)';
+      wrap.style.borderRadius = '999px';
+      wrap.style.padding = '4px 8px';
+      wrap.style.background = '#fff';
+  
+      const label = document.createElement('span');
+      label.textContent = cat;
+  
+      const del = document.createElement('button');
+      del.textContent = '×';
+      del.className = 'btn-ghost';
+      del.style.border = 'none';
+      del.style.padding = '2px 8px';
+      del.style.cursor = 'pointer';
+      del.title = '削除';
+  
+      // “その他”だけは削除不可にする例（好みで外せます）
+      if (cat === 'その他') {
+        del.disabled = true;
+        del.title = 'このカテゴリは削除不可';
+        del.style.opacity = .4;
+        del.style.cursor = 'not-allowed';
+      } else {
+        del.addEventListener('click', () => {
+          CATEGORIES = CATEGORIES.filter(c => c !== cat);
+          saveCategories(CATEGORIES);
+          // 追加フォームのセレクトにも即反映
+          fillSelectOptions(els.category, CATEGORIES, els.category.value);
+          // 編集行は再描画で反映（reload）
+          renderCatList();
+          // 画面にも即反映させたい場合はreload()（通信あり）
+          // reload();
+        });
+      }
+  
+      wrap.append(label, del);
+      els.catList.appendChild(wrap);
+    }
+  }
+
+  els.manageCats.addEventListener('click', openCatPanel);
+  els.catClose.addEventListener('click', closeCatPanel);
+  els.catAdd.addEventListener('click', () => {
+    const name = els.catNewName.value.trim();
+    if (!name) return;
+    if (CATEGORIES.includes(name)) { alert('同名カテゴリがすでにあります'); return; }
+    CATEGORIES.push(name);
+    saveCategories(CATEGORIES);
+    els.catNewName.value = '';
+    // 追加フォームのセレクトにも即反映（選択状態は維持）
+    fillSelectOptions(els.category, CATEGORIES, els.category.value);
+    renderCatList();
+  });
+  els.catNewName.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') els.catAdd.click();
+  });
+  
+  function openCatPanel(){
+    els.catPanel.style.display = '';
+    renderCatList();
+    els.catNewName.focus();
+  }
+  
+  function closeCatPanel(){
+    els.catPanel.style.display = 'none';
+  }
   
   function authHeader(){
     return USER ? { 'Authorization': 'Basic ' + btoa(USER + ':' + PASS) } : {};
