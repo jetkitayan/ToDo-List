@@ -143,6 +143,31 @@ const editing = new Set();
     render(data.todos || data);
   }
 
+  async function pickRandom(){
+    // 現在のフィルタ・検索を反映して最大200件取得→前段でランダム
+    const q = new URLSearchParams();
+    q.set('done', els.filterDone.value);                 // "0" | "1" | "all"
+    if(els.q.value.trim()) q.set('query', els.q.value);  // キーワード
+    q.set('sort','default');
+    q.set('limit','200');
+    const res = await api('/api/todos?' + q.toString());
+    if(!res.ok){ console.error(await res.text()); alert('読み込みに失敗しました'); return; }
+    const items = (await res.json()).todos ?? [];
+    if(!items.length){ alert('該当データがありません'); return; }
+    const it = items[Math.floor(Math.random() * items.length)];
+    showRandom(it);
+  }
+
+  function showRandom(it){
+    currentRandom = it;
+    els.randCat.textContent = it.title || 'その他'; // ← 分類をtitleに格納している
+    els.randMeta.textContent = '更新: ' + fmtDate(it.updated_at || '');
+    els.randText.textContent = it.text || '';
+    els.randomBox.style.display = '';
+    // スクロールして見せる
+    els.randomBox.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
   function fmtDate(s){ if(!s) return ''; return s.replace('T',' ').replace('Z',''); }
 
   function render(items){
