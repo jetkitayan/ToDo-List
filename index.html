@@ -126,6 +126,23 @@
 const editing = new Set();
 
 (function(){
+
+  // ===== カテゴリ管理（localStorage） =====
+  const LS_CATS_KEY = 'todo_categories_v1';
+  const DEFAULT_CATS = ['仕事','プライベート','勉強','その他'];
+  
+  function loadCategories(){
+    try{
+      const v = JSON.parse(localStorage.getItem(LS_CATS_KEY) || '[]');
+      if (Array.isArray(v) && v.length) return dedupKeepOrder(v);
+    }catch{}
+    return DEFAULT_CATS.slice();
+  }
+  
+  function saveCategories(cats){
+    localStorage.setItem(LS_CATS_KEY, JSON.stringify(dedupKeepOrder(cats)));
+  }
+  
   let CATEGORIES = loadCategories();
 
   const API_BASE = 'https://memo-save-api.jetkitayan.workers.dev';
@@ -472,22 +489,6 @@ const editing = new Set();
     els.text.value = '';
     saveLastCategory();   // 念のため直近値を保存
     reload();
-  }
-
-  // ===== カテゴリ管理（localStorage） =====
-  const LS_CATS_KEY = 'todo_categories_v1';
-  const DEFAULT_CATS = ['仕事','プライベート','勉強','その他'];
-  
-  function loadCategories(){
-    try{
-      const v = JSON.parse(localStorage.getItem(LS_CATS_KEY) || '[]');
-      if (Array.isArray(v) && v.length) return dedupKeepOrder(v);
-    }catch{}
-    return DEFAULT_CATS.slice();
-  }
-  
-  function saveCategories(cats){
-    localStorage.setItem(LS_CATS_KEY, JSON.stringify(dedupKeepOrder(cats)));
   }
 
   function renderCatList(){
