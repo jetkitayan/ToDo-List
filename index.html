@@ -405,7 +405,7 @@ const editing = new Set();
       const td1 = document.createElement('td');
       if(isEdit){
         const catI = document.createElement('select');
-        fillSelectOptions(sel, CATEGORIES, (currentRandom.title || 'その他'));
+        fillSelectOptions(catI, CATEGORIES, it.title || 'その他');
         catI.style.display = 'block';
         catI.style.marginBottom = '6px';
 
