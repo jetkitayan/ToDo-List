@@ -293,7 +293,7 @@ const editing = new Set();
     if(randomEditing){
       // 分類=select、本文=textarea に変更
       const sel = document.createElement('select');
-      fillSelectOptions(catI, CATEGORIES, it.title || 'その他');
+      fillSelectOptions(sel, CATEGORIES, currentRandom.title || 'その他');
       sel.id = 'randCatEdit';
       sel.style.marginRight = '8px';
 
@@ -401,8 +401,6 @@ const editing = new Set();
       if(isEdit){
         const catI = document.createElement('select');
         fillSelectOptions(catI, CATEGORIES, it.title || 'その他');
-        catI.style.display = 'block';
-        catI.style.marginBottom = '6px';
         catI.style.display = 'block';
         catI.style.marginBottom = '6px';
 
