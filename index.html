@@ -178,6 +178,9 @@ const editing = new Set();
       selectEl.appendChild(opt);
     }
   }
+
+  // 起動時：追加フォームのカテゴリ候補を反映
+  fillSelectOptions(els.category, CATEGORIES, els.category.value);
   
   function authHeader(){
     return USER ? { 'Authorization': 'Basic ' + btoa(USER + ':' + PASS) } : {};
