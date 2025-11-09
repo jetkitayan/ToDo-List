@@ -356,6 +356,8 @@ const editing = new Set();
     const payload = {
       title: document.getElementById('randCatEdit').value,
       text : document.getElementById('randTextEdit').value
+      if (!catEl || !textEl) return; // 念のため
+      const payload = { title: catEl.value, text: textEl.value };
     };
     const res = await api('/api/todos/' + currentRandom.id, {
       method:'PATCH', body: JSON.stringify(payload)
