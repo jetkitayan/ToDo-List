@@ -324,6 +324,13 @@ const editing = new Set();
     await reload();
     pickRandom(); // 次を表示（空なら内部で警告）
   });
+
+  reload();
+
+  // いちばん上でも下でもOK（IIFEの外）
+  window.addEventListener('error', (e) => {
+  alert('JSエラー: ' + (e.message || e.error));
+  console.error('window.onerror', e);
 </script>
 </body>
 </html>
