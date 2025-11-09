@@ -12,8 +12,8 @@
     .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin:16px}
     label{font-size:12px;color:var(--muted)}
-    input,textarea,button{font:inherit}
-    input[type="text"], textarea{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
+    input,textarea,button,select{font:inherit}
+    input[type="text"], textarea, select{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
     textarea{width:100%;min-height:70px}
     button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;cursor:pointer}
     .btn{border-color:transparent;background:var(--primary);color:#fff}
@@ -42,9 +42,20 @@
         <option value="all">すべて</option>
         <option value="1">完了のみ</option>
       </select>
+
       <label>検索</label>
       <input id="q" type="text" size="14" placeholder="キーワード" />
       <button id="reload" class="btn-ghost">再読込</button>
+
+      <!-- ★ ランダム対象の分類フィルタ -->
+      <label>ランダム分類</label>
+      <select id="randFilter">
+        <option value="__all__">全て</option>
+        <option value="仕事">仕事</option>
+        <option value="プライベート">プライベート</option>
+        <option value="勉強">勉強</option>
+        <option value="その他">その他</option>
+      </select>
       <button id="random" class="btn-ghost">ランダム</button>
     </div>
   </header>
@@ -57,7 +68,11 @@
       <button id="randClose" class="btn-ghost right">閉じる</button>
     </div>
     <div id="randText" style="white-space:pre-wrap;"></div>
-    <div style="margin-top:12px;display:flex;gap:8px">
+    <div id="randEditRow" style="margin-top:12px;display:flex;gap:8px">
+      <button id="randEdit" class="btn-ghost">編集</button>
+      <button id="randSave" class="btn" style="display:none">保存</button>
+      <button id="randCancel" class="btn-ghost" style="display:none">取消</button>
+      <span class="right" style="flex:1"></span>
       <button id="randDone" class="btn">完了にする</button>
       <button id="randNext" class="btn-ghost">次のランダム</button>
     </div>
@@ -103,38 +118,50 @@ const editing = new Set();
     filterDone: document.getElementById('filterDone'),
     q: document.getElementById('q'),
     reload: document.getElementById('reload'),
+    // ランダム
+    randFilter: document.getElementById('randFilter'),
     random: document.getElementById('random'),
-    category: document.getElementById('category'),
-    text: document.getElementById('text'),
-    add: document.getElementById('add'),
-    tbody: document.getElementById('tbody'),
-    counts: document.getElementById('counts'),
     randomBox: document.getElementById('randomBox'),
     randCat: document.getElementById('randCat'),
     randMeta: document.getElementById('randMeta'),
     randText: document.getElementById('randText'),
+    randEdit: document.getElementById('randEdit'),
+    randSave: document.getElementById('randSave'),
+    randCancel: document.getElementById('randCancel'),
     randDone: document.getElementById('randDone'),
     randNext: document.getElementById('randNext'),
     randClose: document.getElementById('randClose'),
+    // 追加フォーム
+    category: document.getElementById('category'),
+    text: document.getElementById('text'),
+    add: document.getElementById('add'),
+    // 一覧
+    tbody: document.getElementById('tbody'),
+    counts: document.getElementById('counts'),
   };
 
-  // ランダム表示中のToDo
-  let currentRandom = null; // { id, title(=分類), text, updated_at, done_at, ... }
-  
+  let currentRandom = null;  // {id,title,text,...}
+  let randomEditing = false;
+
   function authHeader(){
     return USER ? { 'Authorization': 'Basic ' + btoa(USER + ':' + PASS) } : {};
   }
 
   async function api(path, opts={}){
     const headers = { 'Content-Type': 'application/json', ...authHeader(), ...(opts.headers||{}) };
-    const res = await fetch(API_BASE + path, { ...opts, headers });
-    if (!res.ok) {
-      const text = await res.text().catch(()=>'(no body)');
-      console.error('API ERROR', { url: API_BASE + path, status: res.status, statusText: res.statusText, body: text });
+    try{
+      const res = await fetch(API_BASE + path, { ...opts, headers, mode:'cors' });
+      if(!res.ok){
+        const text = await res.text().catch(()=>'(no body)');
+        console.error('API ERROR', { url: API_BASE + path, status: res.status, statusText: res.statusText, body: text });
+      }
+      return res;
+    }catch(e){
+      alert('通信に失敗しました: ' + (e?.message || e));
+      throw e;
     }
-    return res;
   }
-  
+
   async function reload(){
     const q = new URLSearchParams();
     q.set('done', els.filterDone.value);
@@ -148,33 +175,121 @@ const editing = new Set();
     render(data.todos || data);
   }
 
+  // ---- ランダム抽選（分類フィルタ対応） ----
   async function pickRandom(){
-    // 現在のフィルタ・検索を反映して最大200件取得→前段でランダム
+    // 現在のフィルタ・検索を反映して取得
     const q = new URLSearchParams();
-    q.set('done', els.filterDone.value);                 // "0" | "1" | "all"
-    if(els.q.value.trim()) q.set('query', els.q.value);  // キーワード
+    q.set('done', els.filterDone.value);
+    if(els.q.value.trim()) q.set('query', els.q.value.trim());
     q.set('sort','default');
     q.set('limit','200');
+
     const res = await api('/api/todos?' + q.toString());
     if(!res.ok){ const t = await res.text(); alert('読み込み失敗: ' + res.status + ' ' + res.statusText + '\n' + t); return; }
-    const items = (await res.json()).todos ?? [];
+    let items = (await res.json()).todos ?? [];
+
+    // ★ 分類フィルタ（titleに分類を保存している）
+    const want = els.randFilter.value;
+    if(want !== '__all__'){
+      items = items.filter(it => (it.title || 'その他') === want);
+    }
+
     if(!items.length){ alert('該当データがありません'); return; }
     const it = items[Math.floor(Math.random() * items.length)];
     showRandom(it);
   }
 
+  // ---- ランダム表示ボックスの描画/編集 ----
+  function buildRandomBox(){
+    if(!currentRandom){ els.randomBox.style.display='none'; return; }
+    els.randomBox.style.display = '';
+
+    if(randomEditing){
+      // 分類=select、本文=textarea に変更
+      const sel = document.createElement('select');
+      sel.innerHTML = `
+        <option value="仕事">仕事</option>
+        <option value="プライベート">プライベート</option>
+        <option value="勉強">勉強</option>
+        <option value="その他">その他</option>
+      `;
+      sel.value = currentRandom.title || 'その他';
+      sel.id = 'randCatEdit';
+      sel.style.marginRight = '8px';
+
+      els.randCat.replaceWith(sel); // chip -> select
+      els.randCat = sel;
+
+      const ta = document.createElement('textarea');
+      ta.value = currentRandom.text || '';
+      ta.id = 'randTextEdit';
+      ta.style.width = '100%';
+      els.randText.replaceWith(ta);
+      els.randText = ta;
+
+      els.randSave.style.display = '';
+      els.randCancel.style.display = '';
+      els.randEdit.style.display = 'none';
+    }else{
+      // 表示モード：chip と div に戻す
+      const chip = document.createElement('span');
+      chip.textContent = currentRandom.title || 'その他';
+      chip.className = 'chip';
+      chip.id = 'randCat';
+      els.randCat.replaceWith(chip);
+      els.randCat = chip;
+
+      const div = document.createElement('div');
+      div.textContent = currentRandom.text || '';
+      div.id = 'randText';
+      div.style.whiteSpace = 'pre-wrap';
+      els.randText.replaceWith(div);
+      els.randText = div;
+
+      els.randSave.style.display = 'none';
+      els.randCancel.style.display = 'none';
+      els.randEdit.style.display = '';
+    }
+
+    els.randMeta.textContent = '更新: ' + fmtDate(currentRandom.updated_at || '');
+  }
+
   function showRandom(it){
     currentRandom = it;
-    els.randCat.textContent = it.title || 'その他'; // ← 分類をtitleに格納している
-    els.randMeta.textContent = '更新: ' + fmtDate(it.updated_at || '');
-    els.randText.textContent = it.text || '';
-    els.randomBox.style.display = '';
-    // スクロールして見せる
+    randomEditing = false;
+    buildRandomBox();
     els.randomBox.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
+  async function saveRandomEdit(){
+    if(!currentRandom) return;
+    const payload = {
+      title: document.getElementById('randCatEdit').value,
+      text : document.getElementById('randTextEdit').value
+    };
+    const res = await api('/api/todos/' + currentRandom.id, {
+      method:'PATCH', body: JSON.stringify(payload)
+    });
+    if(!res.ok){ alert('保存に失敗しました'); return; }
+    // 反映のため再読込（currentRandomを更新してから再描画）
+    const one = await api('/api/todos/' + currentRandom.id);
+    if(one.ok){
+      const { todo } = await one.json();
+      currentRandom = todo || currentRandom;
+    }
+    randomEditing = false;
+    buildRandomBox();
+    reload();
+  }
+
+  function cancelRandomEdit(){
+    randomEditing = false;
+    buildRandomBox();
   }
 
   function fmtDate(s){ if(!s) return ''; return s.replace('T',' ').replace('Z',''); }
 
+  // ---- 一覧描画/編集 ----
   function render(items){
     els.tbody.innerHTML = '';
     let todo = 0, done = 0;
@@ -183,7 +298,6 @@ const editing = new Set();
     for(const it of items){
       const tr = document.createElement('tr');
 
-      // 完了チェック
       const td0 = document.createElement('td');
       const cb = document.createElement('input');
       cb.type = 'checkbox';
@@ -193,7 +307,6 @@ const editing = new Set();
 
       const isEdit = editing.has(it.id);
 
-      // 本文
       const td1 = document.createElement('td');
       if(isEdit){
         const catI = document.createElement('select');
@@ -206,34 +319,31 @@ const editing = new Set();
         catI.value = it.title || 'その他';
         catI.style.display = 'block';
         catI.style.marginBottom = '6px';
-        
+
         const textI = document.createElement('textarea');
         textI.value = it.text || '';
         textI.style.width = '100%';
-        
+
         td1.append(catI, textI);
         td1.dataset.role = 'edit-main';
       }else{
-        // 分類チップ
         const cat = document.createElement('span');
         cat.textContent = it.title || 'その他';
         cat.className = 'chip';
         cat.style.marginRight = '8px';
-        
+
         const text = document.createElement('div');
         text.textContent = it.text || '';
         if(it.done){ cat.classList.add('strike'); text.classList.add('strike'); }
-        
+
         td1.append(cat, text);
       }
 
-      // 更新情報
       const td3 = document.createElement('td');
       const up = document.createElement('div'); up.textContent = '更新: ' + fmtDate(it.updated_at || '');
       const dn = document.createElement('div'); dn.textContent = it.done_at ? ('完了: ' + fmtDate(it.done_at)) : '';
       td3.append(up, dn);
 
-      // 操作
       const td4 = document.createElement('td');
       if(isEdit){
         const btnSave = document.createElement('button'); btnSave.className='btn'; btnSave.textContent='保存';
@@ -257,14 +367,13 @@ const editing = new Set();
 
   async function add(){
     const payload = {
-      title: els.category.value,        // ← 分類を title に保存
+      title: els.category.value,        // 分類を title に保存
       text: els.text.value.trim(),
     };
     if(!payload.text){ alert('本文を入力してください'); return; }
     const res = await api('/api/todos', { method:'POST', body: JSON.stringify(payload) });
     if(!res.ok){ const t = await res.text(); alert('追加失敗: ' + res.status + ' ' + res.statusText + '\n' + t); return; }
-    els.text.value='';
-    els.category.value = 'その他';      // ← 初期化
+    els.text.value=''; els.category.value = 'その他';
     reload();
   }
 
@@ -284,57 +393,44 @@ const editing = new Set();
   async function saveEdit(id, tr){
     const main = tr.querySelector('td[data-role="edit-main"]');
     const [catI, textI] = main.querySelectorAll('select,textarea');
-
-    const payload = {
-      title: catI.value,          // ← 分類を title に保存
-      text: (textI.value || ''),
-    };
-
+    const payload = { title: catI.value, text: (textI.value || '') };
     const res = await api('/api/todos/'+id, { method:'PATCH', body: JSON.stringify(payload) });
     if(!res.ok){ alert('保存に失敗しました'); return; }
     editing.delete(id);
     reload();
   }
 
-  // どこでもOK：IIFEの中に追加
+  // デバッグ：自己テスト
   async function selfTest(){
-    // 1) 認証付きGET
     let r = await api('/api/todos?done=all&limit=1');
     console.log('TEST todos GET', r.status, r.statusText);
-    // 2) ダミーPOST（本文だけ）
-    r = await api('/api/todos', { method:'POST', body: JSON.stringify({ title:'テスト', text:'selfTest' }) });
-    console.log('TEST todos POST', r.status, r.statusText);
   }
-  // 初回ロード後に実行
-  reload().then(selfTest);
 
+  // イベント
   els.add.addEventListener('click', add);
   els.reload.addEventListener('click', reload);
   els.filterDone.addEventListener('change', reload);
   els.q.addEventListener('keydown', e=>{ if(e.key==='Enter') reload(); });
+
   els.random.addEventListener('click', pickRandom);
   els.randNext.addEventListener('click', pickRandom);
   els.randClose.addEventListener('click', ()=>{ els.randomBox.style.display='none'; });
+
+  els.randEdit.addEventListener('click', ()=>{ if(!currentRandom) return; randomEditing = true; buildRandomBox(); });
+  els.randCancel.addEventListener('click', ()=> cancelRandomEdit());
+  els.randSave.addEventListener('click', ()=> saveRandomEdit());
+
   els.randDone.addEventListener('click', async ()=>{
     if(!currentRandom) return;
-    const res = await api('/api/todos/'+currentRandom.id, {
-      method:'PATCH', body: JSON.stringify({ done: true })
-    });
+    const res = await api('/api/todos/'+currentRandom.id, { method:'PATCH', body: JSON.stringify({ done: true }) });
     if(!res.ok){ alert('更新に失敗しました'); return; }
     await reload();
-    pickRandom(); // 次を表示（空なら内部で警告）
+    pickRandom();
   });
 
-  // 初回ロード & 自己テスト
+  // 初期表示
   reload().then(selfTest);
-
-})(); // ← IIFE をここで閉じる（超重要）
-
-// いちばん上でも下でもOK（IIFEの外）
-window.addEventListener('error', (e) => {
-  alert('JSエラー: ' + (e.message || e.error));
-  console.error('window.onerror', e);
-});
+})();
 </script>
 </body>
 </html>
