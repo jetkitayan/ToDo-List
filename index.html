@@ -103,13 +103,24 @@ const editing = new Set();
     filterDone: document.getElementById('filterDone'),
     q: document.getElementById('q'),
     reload: document.getElementById('reload'),
+    random: document.getElementById('random'),
     category: document.getElementById('category'),
     text: document.getElementById('text'),
     add: document.getElementById('add'),
     tbody: document.getElementById('tbody'),
     counts: document.getElementById('counts'),
+    randomBox: document.getElementById('randomBox'),
+    randCat: document.getElementById('randCat'),
+    randMeta: document.getElementById('randMeta'),
+    randText: document.getElementById('randText'),
+    randDone: document.getElementById('randDone'),
+    randNext: document.getElementById('randNext'),
+    randClose: document.getElementById('randClose'),
   };
 
+  // ランダム表示中のToDo
+  let currentRandom = null; // { id, title(=分類), text, updated_at, done_at, ... }
+  
   function authHeader(){
     return USER ? { 'Authorization': 'Basic ' + btoa(USER + ':' + PASS) } : {};
   }
