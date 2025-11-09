@@ -294,10 +294,19 @@ const editing = new Set();
   els.add.addEventListener('click', add);
   els.reload.addEventListener('click', reload);
   els.filterDone.addEventListener('change', reload);
-  document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter') reload(); });
-
-  reload();
-})();
+  els.q.addEventListener('keydown', e=>{ if(e.key==='Enter') reload(); });
+  els.random.addEventListener('click', pickRandom);
+  els.randNext.addEventListener('click', pickRandom);
+  els.randClose.addEventListener('click', ()=>{ els.randomBox.style.display='none'; });
+  els.randDone.addEventListener('click', async ()=>{
+    if(!currentRandom) return;
+    const res = await api('/api/todos/'+currentRandom.id, {
+      method:'PATCH', body: JSON.stringify({ done: true })
+    });
+    if(!res.ok){ alert('更新に失敗しました'); return; }
+    await reload();
+    pickRandom(); // 次を表示（空なら内部で警告）
+  });
 </script>
 </body>
 </html>
