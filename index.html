@@ -179,6 +179,24 @@ const editing = new Set();
     }
   }
 
+  // randFilter を __all__ + CATEGORIES で再構築
+  function fillRandFilter() {
+    const keep = els.randFilter.value; // いまの選択をなるべく維持
+    els.randFilter.innerHTML = '';
+    const optAll = document.createElement('option');
+    optAll.value = '__all__';
+    optAll.textContent = '全て';
+    els.randFilter.appendChild(optAll);
+    for (const cat of CATEGORIES) {
+      const o = document.createElement('option');
+      o.value = cat;
+      o.textContent = cat;
+      els.randFilter.appendChild(o);
+    }
+    // 以前の選択が残っていれば復元、なければ全て
+    els.randFilter.value = [...['__all__'], ...CATEGORIES].includes(keep) ? keep : '__all__';
+  }
+  
   // 起動時：追加フォームのカテゴリ候補を反映
   fillSelectOptions(els.category, CATEGORIES, els.category.value);
 
