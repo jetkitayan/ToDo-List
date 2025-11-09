@@ -227,10 +227,10 @@ const editing = new Set();
 
   async function saveEdit(id, tr){
     const main = tr.querySelector('td[data-role="edit-main"]');
-    const [titleI, textI] = main.querySelectorAll('input,textarea');
+    const [catI, textI] = main.querySelectorAll('select,textarea');
 
     const payload = {
-      title: (titleI.value || null),
+      title: catI.value,          // ← 分類を title に保存
       text: (textI.value || ''),
     };
 
