@@ -125,11 +125,16 @@ const editing = new Set();
     return USER ? { 'Authorization': 'Basic ' + btoa(USER + ':' + PASS) } : {};
   }
 
-  function api(path, opts={}){
+  async function api(path, opts={}){
     const headers = { 'Content-Type': 'application/json', ...authHeader(), ...(opts.headers||{}) };
-    return fetch(API_BASE + path, { ...opts, headers });
+    const res = await fetch(API_BASE + path, { ...opts, headers });
+    if (!res.ok) {
+      const text = await res.text().catch(()=>'(no body)');
+      console.error('API ERROR', { url: API_BASE + path, status: res.status, statusText: res.statusText, body: text });
+    }
+    return res;
   }
-
+  
   async function reload(){
     const q = new URLSearchParams();
     q.set('done', els.filterDone.value);
@@ -138,7 +143,7 @@ const editing = new Set();
     q.set('limit','100');
 
     const res = await api('/api/todos?' + q.toString());
-    if(!res.ok){ console.error(await res.text()); alert('読み込みに失敗しました'); return; }
+    if(!res.ok){ const t = await res.text(); alert('読み込み失敗: ' + res.status + ' ' + res.statusText + '\n' + t); return; }
     const data = await res.json();
     render(data.todos || data);
   }
@@ -151,7 +156,7 @@ const editing = new Set();
     q.set('sort','default');
     q.set('limit','200');
     const res = await api('/api/todos?' + q.toString());
-    if(!res.ok){ console.error(await res.text()); alert('読み込みに失敗しました'); return; }
+    if(!res.ok){ const t = await res.text(); alert('読み込み失敗: ' + res.status + ' ' + res.statusText + '\n' + t); return; }
     const items = (await res.json()).todos ?? [];
     if(!items.length){ alert('該当データがありません'); return; }
     const it = items[Math.floor(Math.random() * items.length)];
@@ -257,7 +262,7 @@ const editing = new Set();
     };
     if(!payload.text){ alert('本文を入力してください'); return; }
     const res = await api('/api/todos', { method:'POST', body: JSON.stringify(payload) });
-    if(!res.ok){ alert('追加に失敗しました'); return; }
+    if(!res.ok){ const t = await res.text(); alert('追加失敗: ' + res.status + ' ' + res.statusText + '\n' + t); return; }
     els.text.value='';
     els.category.value = 'その他';      // ← 初期化
     reload();
