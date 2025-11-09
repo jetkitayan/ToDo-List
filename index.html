@@ -411,6 +411,31 @@ const editing = new Set();
     reload();
   }
 
+  // ===== カテゴリ管理（localStorage） =====
+  const LS_CATS_KEY = 'todo_categories_v1';
+  const DEFAULT_CATS = ['仕事','プライベート','勉強','その他'];
+  
+  function loadCategories(){
+    try{
+      const v = JSON.parse(localStorage.getItem(LS_CATS_KEY) || '[]');
+      if (Array.isArray(v) && v.length) return dedupKeepOrder(v);
+    }catch{}
+    return DEFAULT_CATS.slice();
+  }
+  
+  function saveCategories(cats){
+    localStorage.setItem(LS_CATS_KEY, JSON.stringify(dedupKeepOrder(cats)));
+  }
+  
+  function dedupKeepOrder(arr){
+    const seen = new Set();
+    const out = [];
+    for (const s of arr.map(x=>String(x).trim()).filter(Boolean)) {
+      if (!seen.has(s)) { seen.add(s); out.push(s); }
+    }
+    return out;
+  }
+  
   async function toggleDone(id, v){
     const res = await api('/api/todos/'+id, { method:'PATCH', body: JSON.stringify({ done: !!v }) });
     if(!res.ok){ alert('更新に失敗しました'); return; }
