@@ -522,6 +522,7 @@ const editing = new Set();
           saveCategories(CATEGORIES);
           // 追加フォームのセレクトにも即反映
           fillSelectOptions(els.category, CATEGORIES, els.category.value);
+          fillRandFilter();
           // 編集行は再描画で反映（reload）
           renderCatList();
           // 画面にも即反映させたい場合はreload()（通信あり）
