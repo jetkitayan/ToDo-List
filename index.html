@@ -153,13 +153,17 @@ const editing = new Set();
         td1.append(titleI, textI);
         td1.dataset.role = 'edit-main';
       }else{
-        const title = document.createElement('div');
-        title.textContent = it.title || '(無題)';
-        title.style.fontWeight = '600';
+        // 分類チップ
+        const cat = document.createElement('span');
+        cat.textContent = it.title || 'その他';
+        cat.className = 'chip';
+        cat.style.marginRight = '8px';
+        
         const text = document.createElement('div');
         text.textContent = it.text || '';
-        if(it.done){ title.classList.add('strike'); text.classList.add('strike'); }
-        td1.append(title, text);
+        if(it.done){ cat.classList.add('strike'); text.classList.add('strike'); }
+        
+        td1.append(cat, text);
       }
 
       // 更新情報
