@@ -140,18 +140,22 @@ const editing = new Set();
       // 本文
       const td1 = document.createElement('td');
       if(isEdit){
-        const titleI = document.createElement('input');
-        titleI.type = 'text';
-        titleI.value = it.title || '';
-        titleI.style.fontWeight = '600';
-        titleI.style.display = 'block';
-        titleI.style.marginBottom = '6px';
-
+        const catI = document.createElement('select');
+        catI.innerHTML = `
+          <option value="仕事">仕事</option>
+          <option value="プライベート">プライベート</option>
+          <option value="勉強">勉強</option>
+          <option value="その他">その他</option>
+        `;
+        catI.value = it.title || 'その他';
+        catI.style.display = 'block';
+        catI.style.marginBottom = '6px';
+        
         const textI = document.createElement('textarea');
         textI.value = it.text || '';
         textI.style.width = '100%';
-
-        td1.append(titleI, textI);
+        
+        td1.append(catI, textI);
         td1.dataset.role = 'edit-main';
       }else{
         // 分類チップ
