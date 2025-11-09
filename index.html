@@ -199,7 +199,8 @@ const editing = new Set();
   
   // 起動時：追加フォームのカテゴリ候補を反映
   fillSelectOptions(els.category, CATEGORIES, els.category.value);
-
+  fillRandFilter();
+  
   els.manageCats.addEventListener('click', openCatPanel);
   els.catClose.addEventListener('click', closeCatPanel);
   els.catAdd.addEventListener('click', () => {
@@ -211,6 +212,7 @@ const editing = new Set();
     els.catNewName.value = '';
     // 追加フォームのセレクトにも即反映（選択状態は維持）
     fillSelectOptions(els.category, CATEGORIES, els.category.value);
+    fillRandFilter();
     renderCatList();
   });
   els.catNewName.addEventListener('keydown', (e) => {
